@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # Langflow AI Orchestration
+  langflow-db:
+    container_name: langflow-db
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - langflow_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U langflow -d langflow" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - langflow-network
+
+  langflow:
+    container_name: langflow
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "7860:7860"
+    env_file:
+      - .env
+    depends_on:
+      langflow-db:
+        condition: service_healthy
+    volumes:
+      - langflow_data:/app/langflow
+      - ./results/:/app/results
+    networks:
+      - langflow-network
+    restart: unless-stopped
+
+volumes:
+  langflow_postgres_data:
+  langflow_data:
+
+networks:
+  langflow-network:
+    name: langflow-network
+    driver: bridge
